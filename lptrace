@@ -31,26 +31,27 @@ untrace_fn = """import sys ; sys.settrace(None)"""
 def runfile(pid, script):
     with tempfile.NamedTemporaryFile() as tmp:
         name = tmp.name
-        tmp.write(script)
+        tmp.write(script.encode('utf-8'))
 
         tmp.file.flush()
-        os.chmod(tmp.name, 0666)
+        os.chmod(tmp.name, 0o666)
 
-        cmd = 'execfile(\\"{}\\")'.format(name)
+        #cmd = 'execfile(\\"{}\\")'.format(name)
+        cmd = 'exec(open(\\"{}\\", "r").read())'.format(name)
         inject(pid, cmd)
 
 
 def strace(pid):
     fifo_name = tempfile.mktemp()
     os.mkfifo(fifo_name)
-    os.chmod(fifo_name, 0777)
+    os.chmod(fifo_name, 0o777)
 
     trace_code = trace_fn % fifo_name
     runfile(pid, trace_code)
 
     # Remove the trace if the user types Ctrl-C:
     def sigint_handler(signal, frame):
-        print 'Received Ctrl-C, quitting'
+        print('Received Ctrl-C, quitting')
         runfile(pid, untrace_fn)
         sys.exit(0)
 
@@ -60,7 +61,7 @@ def strace(pid):
         while True:
             data = fd.read()
             if data != '':
-                print data
+                print(data)
 
 
 def pdb_prompt(pid):
@@ -96,13 +97,13 @@ def main():
     (options, args) = parser.parse_args()
 
     if options.pid is None:
-        print "You need to specify a process to attach to."
+        print("You need to specify a process to attach to.")
         sys.exit(-1)
 
     pid = int(options.pid)
 
     if os.geteuid() != 0:
-        print "Error: you must be root to run lptrace. Exiting."
+        print("Error: you must be root to run lptrace. Exiting.")
         sys.exit(-1)
 
     if options.debugger is True:
